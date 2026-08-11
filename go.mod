@@ -1,4 +1,4 @@
-module github.com/zyl-dev/gokit
+module github.com/dlvyl/gokit
 
 go 1.23
 
