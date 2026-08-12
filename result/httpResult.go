@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/bitdlv/gokit/errx"
-	"github.com/bitdlv/gokit/xerr"
+	"github.com/bitdlv/gokit/errx/legacy"
 
 	"github.com/pkg/errors"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -77,28 +77,28 @@ func HttpResult(r *http.Request, w http.ResponseWriter, resp interface{}, err er
 		r := Success(resp)
 		httpx.WriteJson(w, http.StatusOK, r)
 	} else {
-		errcode := xerr.REUQEST_PARAM_ERROR
+		errcode := legacy.REUQEST_PARAM_ERROR
 		errmsg := err.Error()
 		// 错误返回 err 是 status.Status
 
-		causeErr := errors.Cause(err) // err类型溯源 -> xerr.CodeError
+		causeErr := errors.Cause(err) // err类型溯源 -> legacy.CodeError
 		// 这里为啥捕获不到？？？大神解释下
 		var parseErr error
-		if e, ok := causeErr.(*xerr.CodeError); ok { // 自定义错误类型
+		if e, ok := causeErr.(*legacy.CodeError); ok { // 自定义错误类型
 			// 自定义CodeError
 			errcode = e.GetErrCode()
 			errmsg = e.GetErrMsg()
 		} else if e, ok := causeErr.(validation.Validator); ok {
-			errcode = xerr.REUQEST_PARAM_ERROR
+			errcode = legacy.REUQEST_PARAM_ERROR
 			errmsg = e.Validate().Error()
 		} else {
 			goStatus, success := status.FromError(causeErr)
 			if success { // grpc err错误
 				// 退而求其次，正则解析出msg和error
-				errcode, errmsg, parseErr = xerr.ParseError(goStatus.Message())
+				errcode, errmsg, parseErr = legacy.ParseError(goStatus.Message())
 			}
 			if parseErr != nil {
-				errcode = xerr.UNKNOWN_ERROR
+				errcode = legacy.UNKNOWN_ERROR
 				errmsg = goStatus.Message()
 			}
 		}

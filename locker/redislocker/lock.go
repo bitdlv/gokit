@@ -5,9 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 const (

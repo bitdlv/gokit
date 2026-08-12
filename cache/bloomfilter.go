@@ -3,7 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 )
 
 type BloomFilter struct {

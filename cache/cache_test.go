@@ -3,10 +3,11 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 func TestCache(t *testing.T) {

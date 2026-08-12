@@ -3,8 +3,8 @@ package cache
 import (
 	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
 )
@@ -17,7 +17,7 @@ func NewDistributedLock(client *redis.Client) *DistributedLock {
 	return &DistributedLock{client: client}
 }
 
-// 获取分布式锁
+// AcquireLock 获取分布式锁
 func (dl *DistributedLock) AcquireLock(ctx context.Context, lockKey string, timeout time.Duration) (string, bool, error) {
 	lockValue := uuid.New().String()
 	result, err := dl.client.SetNX(ctx, lockKey, lockValue, timeout).Result()
@@ -27,7 +27,7 @@ func (dl *DistributedLock) AcquireLock(ctx context.Context, lockKey string, time
 	return lockValue, result, nil
 }
 
-// 续期分布式锁
+// RenewLock 续期分布式锁
 func (dl *DistributedLock) RenewLock(ctx context.Context, lockKey string, lockValue string, timeout time.Duration) {
 	ticker := time.NewTicker(timeout / 2) // 每隔一半的过期时间续期一次
 	defer ticker.Stop()
@@ -55,7 +55,7 @@ func (dl *DistributedLock) RenewLock(ctx context.Context, lockKey string, lockVa
 	}
 }
 
-// 释放分布式锁
+// ReleaseLock 释放分布式锁
 func (dl *DistributedLock) ReleaseLock(ctx context.Context, lockKey string, lockValue string) error {
 	// 使用 Lua 脚本确保只有锁的值匹配时才释放锁
 	script := `

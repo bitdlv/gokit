@@ -1,12 +1,10 @@
 package cache
 
-import (
-	"github.com/redis/go-redis/v9"
-	"time"
-)
+import "time"
 
 import (
 	"context"
+	"github.com/go-redis/redis/v8"
 )
 
 type Cache struct {
