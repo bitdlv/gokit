@@ -2,7 +2,7 @@
 package dbs
 
 import (
-	"github.com/dlvyl/gokit/ssh"
+	"github.com/bitdlv/gokit/ssh"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	log "github.com/sirupsen/logrus"
