@@ -32,20 +32,46 @@ c.Exec(ctx)   // 顺序执行，任一 Abort 即中断
 | `BuildByPid[T](items) []*Node[T]`  | O(N) | 按 ID/Pid 建森林 |
 | `FindSubTree[T](roots, matchFn)` | O(N) | 找第一个匹配子树 |
 | `Walk[T](roots, fn)` | O(N) | 前序遍历，fn 返 false 中止 |
-| `Map[Src,T](src, convert)` | O(N) | model → Node[T] 一步映射 |
+| `Map[Src,T](src, convert)` | O(N) | 完整构造 Node[T]（Data 类型可与 Src 不同，做投影/裁剪） |
+| `ToNodes[T](src, keyFn) []Node[T]` | O(N) | 业务模型直接当 Data，只回答五个 Key 字段（最常用） |
+| `ToNodesParallel[T](src, keyFn, batchSize, workers)` | O(N/P) | ToNodes 并行版；keyFn 有重计算且 N ≥ 5 万时才用 |
+| `BuildTreeByPath[T](src, keyFn) []*Node[T]` | O(N) | 一步到位 = ToNodes + BuildByPath |
+| `BuildTreeByPid[T](src, keyFn) []*Node[T]` | O(N) | 一步到位 = ToNodes + BuildByPid |
+
+**Keys**：`struct { ID, Pid, Name, Path, Ppath string }`，`ToNodes` 系列的字段映射结果。
+
+**Map vs ToNodes 怎么选**：
+- `Map`：Src → Node[T]，两个类型不同（如 model.Row → 精简 Payload），做类型投影/裁剪。
+- `ToNodes`：Src 直接放进 `Data T`，业务模型就是节点扩展数据。最常见场景，写起来最省。
 
 **SafeListStore[T]**（并发采集分页数据后统一建树）：`NewSafeListStore[T]() / Add / Len / GetAll / BuildTreeByPath / BuildTreeByPid / BuildTreeByCondition`。
 
 ```go
 // 业务扩展字段
 type BomPayload struct {
-    Price      int64
-    Supplier   string
-    Level      int32
-    HasChild   bool
+    Price    int64
+    Supplier string
+    Level    int32
+    HasChild bool
 }
 
-// 一步 model → 节点
+// —— 方式 A：ToNodes（业务模型直接当 Data，最常用）
+rows, _ := query.TBomEdgeVersion.Find() // []*model.TBomEdgeVersion
+roots := tree.BuildTreeByPath(rows, func(r *model.TBomEdgeVersion) tree.Keys {
+    return tree.Keys{
+        ID:    strconv.FormatInt(r.ID, 10),
+        Pid:   strconv.FormatInt(r.Pnid, 10),
+        Name:  r.Name,
+        Path:  r.Path,
+        Ppath: r.Ppath,
+    }
+})
+tree.Walk(roots, func(n *tree.Node[*model.TBomEdgeVersion]) bool {
+    fmt.Println(n.Name, n.Data.Price) // 任意 model 字段直读
+    return true
+})
+
+// —— 方式 B：Map（Src → Payload 类型投影）
 nodes := tree.Map(rows, func(r *model.TBomEdgeVersion) tree.Node[BomPayload] {
     return tree.Node[BomPayload]{
         ID: strconv.FormatInt(r.ID, 10), Pid: strconv.FormatInt(r.Pnid, 10),
@@ -53,13 +79,12 @@ nodes := tree.Map(rows, func(r *model.TBomEdgeVersion) tree.Node[BomPayload] {
         Data: BomPayload{Price: r.Price, Supplier: r.SupplierID, Level: r.Level},
     }
 })
-roots := tree.BuildByPath(nodes)
+roots2 := tree.BuildByPath(nodes)
 
-// 遍历读扩展字段
-tree.Walk(roots, func(n *tree.Node[BomPayload]) bool {
-    fmt.Println(n.Name, n.Data.Price)
-    return true
-})
+// —— 方式 C：keyFn 内含重计算 + 大数据量 → ToNodesParallel
+// workers=0 → GOMAXPROCS, batchSize=0 → 自动均分（min 1024）
+nodes = tree.ToNodesParallel(rows, keyFn, 0, 0)
+roots3 := tree.BuildByPath(nodes)
 ```
 
 无扩展字段直接用 `tree.Elem`（`= Node[struct{}]`）：
@@ -68,7 +93,10 @@ tree.Walk(roots, func(n *tree.Node[BomPayload]) bool {
 roots := tree.BuildByPath([]tree.Elem{{ID:"1", Path:"/1/", Ppath:"/"}, ...})
 ```
 
-**性能**：10 万节点建树 ≈ 50–70 ms/次（Data 字段大小相关）。
+**性能基线（macOS i7-8850H，10 万节点）**：
+- `BuildByPath` ≈ 21 ms/op
+- `ToNodes` ≈ 7.4 ms/op；`ToNodesParallel` ≈ 4.4 ms/op（1.67×，keyFn 只做字段拷贝的最劣情况；keyFn 有 strconv/正则等重计算时加速比更高）
+- **注意**：`BuildByPath` 本身没提供并行版——分桶+拷贝的开销比 O(N) map 查找还大，并行反而更慢。加速请集中在 `ToNodesParallel`（keyFn 层）。
 
 **迁移自** idx `internal/logic/bomscheme/bomSchemeNodeTreeLogic.go` 的 `BuildTreeFromEdges` pathMap 单次线性遍历思路，泛型化后适配任意业务节点。
 
