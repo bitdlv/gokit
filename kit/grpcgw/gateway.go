@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/bitdlv/gokit/header"
 	"github.com/bitdlv/gokit/result"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -17,26 +18,48 @@ import (
 )
 
 // ─────────────────────── Header Constants ───────────────────────────────────
+//
+// 标准 HTTP header 常量在 github.com/bitdlv/gokit/header 包定义；此处仅对标准头
+// 做别名重新导出，方便就近调用。
+//
+// 业务 header（如 token / userId / pcode 等）**不再由本包提供**——请在各自项目
+// 内声明常量，并通过 header.Register 注入透传注册表。详见
+// gokit/docs/usage-header-jwtauth.md。
 
 const (
-	AuthToken         = "token"
-	HeaderUserId      = "userId"
-	HeaderUserName    = "username"
-	HeaderPhone       = "userPhone"
-	HeaderBpmUid      = "bpmUserId"
-	HeaderBpmUname    = "bpmUserName"
-	HeaderProjectCode = "pcode" // Header 头中项目编码
+	HeaderAuthorization = header.HeaderAuthorization
+	HeaderContentType   = header.HeaderContentType
+	HeaderAccept        = header.HeaderAccept
+	HeaderUserAgent     = header.HeaderUserAgent
+	HeaderRequestID     = header.HeaderRequestID
+	HeaderTraceID       = header.HeaderTraceID
+	HeaderSpanID        = header.HeaderSpanID
+	HeaderXForwardedFor = header.HeaderXForwardedFor
+	HeaderXRealIP       = header.HeaderXRealIP
+	HeaderTenantID      = header.HeaderTenantID
+	HeaderLang          = header.HeaderLang
 )
 
-// DefaultHeaderKeys is the default set of header keys to pass through the gateway.
-var DefaultHeaderKeys = []string{
-	HeaderBpmUid,
-	HeaderBpmUname,
-	HeaderUserId,
-	HeaderPhone,
-	HeaderUserName,
-	HeaderProjectCode,
-}
+// userIDHeader 是 ResponseHandler 用于识别当前用户的 header key。
+// 默认空——调用方通过 SetUserIDHeader 显式配置后才启用基于角色的字段脱敏。
+var userIDHeader = ""
+
+// SetUserIDHeader 配置 ResponseHandler 读取用户 ID 时使用的 header key。
+// 必须在启动阶段调用；未配置时 ResponseHandler 将跳过脱敏直接返回原始 data。
+// 并发不安全——仅限初始化期调用。
+func SetUserIDHeader(name string) { userIDHeader = name }
+
+// GetUserIDHeader 返回当前配置的用户 ID header key（可能为空）。
+func GetUserIDHeader() string { return userIDHeader }
+
+// GetHeaderKeys 返回当前注册的 header key 集合的副本（并发安全）。
+func GetHeaderKeys() []string { return header.Keys() }
+
+// RegisterHeaderKeys 追加自定义 header key 到全局注册表（去重，大小写不敏感，并发安全）。
+func RegisterHeaderKeys(keys ...string) { header.Register(keys...) }
+
+// SetHeaderKeys 全量替换 header key 注册表（并发安全）。
+func SetHeaderKeys(keys []string) { header.Set(keys) }
 
 // ─────────────────────── Header Matcher ─────────────────────────────────────
 
@@ -44,10 +67,16 @@ var DefaultHeaderKeys = []string{
 // through all keys listed in extraKeys (case-insensitive) and falls back to
 // the default runtime matcher for anything else.
 //
+// 当 extraKeys 为 nil 时，使用当前 header key 注册表的快照（GetHeaderKeys）。
+//
 // Usage:
 //
-//	matcher := grpcgw.NewHeaderMatcher([]string{"userId", "username", "userPhone", "bpmUserId", "bpmUserName", "pcode"})
+//	matcher := grpcgw.NewHeaderMatcher(nil) // 使用全局注册表
+//	matcher := grpcgw.NewHeaderMatcher([]string{"X-Tenant-Id"})
 func NewHeaderMatcher(extraKeys []string) func(string) (string, bool) {
+	if extraKeys == nil {
+		extraKeys = GetHeaderKeys()
+	}
 	lower := make(map[string]string, len(extraKeys))
 	for _, k := range extraKeys {
 		lower[strings.ToLower(k)] = strings.ToLower(k)
@@ -238,7 +267,7 @@ func WithResponseProcessor(fn ResponseProcessor) Option {
 
 func defaultConfig() *gatewayConfig {
 	return &gatewayConfig{
-		headerMatcher: NewHeaderMatcher(DefaultHeaderKeys),
+		headerMatcher: NewHeaderMatcher(nil),
 		errorHandler:  DefaultErrorHandler,
 		marshaler: &WrappedMarshaler{
 			JSONPb: runtime.JSONPb{

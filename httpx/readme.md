@@ -19,7 +19,7 @@
 ```go
 package example
 
-import "git.zhiwei.dc-science.cn/business/common/httpx"
+import "xxx.cn/business/common/httpx"
 
 var req struct{
 	Field1 int `json:"field1"`

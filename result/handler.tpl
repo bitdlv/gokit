@@ -1,7 +1,7 @@
 package {{.PkgName}}
 
 import (
-    "git.zhiwei.dc-science.cn/business/common/result"
+    "xxx.cn/business/common/result"
 	"net/http"
 
 	{{if .HasRequest}}"github.com/zeromicro/go-zero/rest/httpx"{{end}}

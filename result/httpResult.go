@@ -23,7 +23,7 @@ import (
 //
 //	h := grpcgw.NewResponseHandler4Api(rdb, db)
 //	result.ResponseMaskHook = func(r *http.Request, data map[string]any) map[string]any {
-//	    userIdStr := r.Header.Get(grpcgw.HeaderUserId)
+//	    userIdStr := r.Header.Get(grpcgw.GetUserIDHeader())
 //	    userId, _ := strconv.ParseInt(userIdStr, 10, 64)
 //	    return h.ResponseHandle(r.Context(), userId, strings.ToUpper(r.Method), r.URL.Path, data)
 //	}

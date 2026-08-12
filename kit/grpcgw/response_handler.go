@@ -203,7 +203,10 @@ func (p *ResponseHandler) ResponseHandler(r *http.Request, db *gorm.DB, data map
 	if data == nil {
 		return data
 	}
-	userIdStr := r.Header.Get(HeaderUserId)
+	if userIDHeader == "" {
+		return data
+	}
+	userIdStr := r.Header.Get(userIDHeader)
 	if userIdStr == "" {
 		return data
 	}
