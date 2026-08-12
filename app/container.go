@@ -40,22 +40,22 @@ func GetInstance[T any](name string, args ...interface{}) (ins T, err error) {
 	in := make([]reflect.Value, len(args))
 	for i, arg := range args {
 		expectedType := fnType.In(i)
-		if reflect.TypeOf(arg) != expectedType {
-			argValue := reflect.ValueOf(arg)
-			//json.Number 类型特殊处理
-			if jsonNumber, ok := arg.(json.Number); ok && expectedType.Kind() == reflect.Int {
-				parsedValue, err := jsonNumber.Int64() // 尝试解析为 Int64
-				if err != nil {
-					return ins, fmt.Errorf("argument %d cannot be converted from json.Number to int: %v", i+1, err)
-				}
-				argValue = reflect.ValueOf(int(parsedValue))
-			} else if !argValue.Type().ConvertibleTo(expectedType) {
-				return ins, fmt.Errorf("argument %d should be of type %s, but got %s and cannot be converted", i+1, expectedType, reflect.TypeOf(arg))
-			}
-			in[i] = argValue.Convert(expectedType)
-		} else {
+		if reflect.TypeOf(arg) == expectedType {
 			in[i] = reflect.ValueOf(arg)
+			continue
 		}
+		argValue := reflect.ValueOf(arg)
+		if jsonNumber, ok := arg.(json.Number); ok && expectedType.Kind() == reflect.Int {
+			parsedValue, err := jsonNumber.Int64() // 尝试解析为 Int64
+			if err != nil {
+				return ins, fmt.Errorf("argument %d cannot be converted from json.Number to int: %v", i+1, err)
+			}
+			argValue = reflect.ValueOf(int(parsedValue))
+		} else if !argValue.Type().ConvertibleTo(expectedType) {
+			return ins, fmt.Errorf("argument %d should be of type %s, but got %s and cannot be converted", i+1, expectedType, reflect.TypeOf(arg))
+		}
+
+		in[i] = argValue.Convert(expectedType)
 	}
 	// 调用初始化函数
 	inst := fnValue.Call(in)[0].Interface()
