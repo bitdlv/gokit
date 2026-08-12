@@ -85,8 +85,43 @@ if lk.TryLock() {
 
 **测试**：`miniredis` 起假 Redis，验证互斥 + 过期。
 
+## paging — 分页并发抓取 / 页码归一化
+
+迁移自 idx `internal/utils/page.go`，通用化后进入公共库。
+
+**API**：`FetchAll[T]`、`PageResult[T]`、`FetchFunc[T]`、`Normalize`
+
+```go
+import "github.com/bitdlv/gokit/paging"
+
+// 并发全量抓取
+users, err := paging.FetchAll[User](ctx, 100, 8,
+    func(ctx context.Context, page, size int) (*paging.PageResult[User], error) {
+        resp, err := client.List(ctx, page, size)
+        if err != nil { return nil, err }
+        return &paging.PageResult[User]{Items: resp.Items, Total: resp.Total}, nil
+    })
+
+// 页码归一化
+page, size, offset := paging.Normalize(req.Page, req.PageSize)
+```
+
+| API | 说明 |
+|---|---|
+| `FetchAll(ctx, pageSize, maxConcurrency, fn)` | 先同步取首页拿 Total，剩余页 errgroup 并发抓取，按页码顺序合并 |
+| `PageResult[T]{Items, Total}` | 分页数据结构 |
+| `FetchFunc[T]` | `func(ctx, page, size) (*PageResult[T], error)` |
+| `Normalize(page, size, defaultSize...)` | 归一化 page/size 并返回 offset |
+
+要点：
+- 闭包内**必须**使用参数里的 `ctx`（errgroup 派生的 gCtx），任一页失败可级联取消。
+- `maxConcurrency<=0` 表示不限制，务必按下游 QPS 合理设置。
+- 结果顺序稳定（按 page 1..N 合并）。
+
+详见 [usage-paging.md](usage-paging.md)。
+
 ## 测试
 
 ```bash
-go test -v ./goroutinepool/... ./scheduler/... ./locker/...
+go test -v ./goroutinepool/... ./scheduler/... ./locker/... ./paging/...
 ```
