@@ -2,8 +2,6 @@ module github.com/bitdlv/gokit
 
 go 1.23.0
 
-toolchain go1.23.4
-
 require (
 	github.com/go-playground/form/v4 v4.0.0
 	github.com/go-sql-driver/mysql v1.9.0
