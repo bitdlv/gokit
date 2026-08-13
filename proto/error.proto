@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package common.error;
 
-option go_package = "xxx.cn/business/common/pb;pb";
+option go_package = "github.com/bitdlv/gokit/pb;pb";
 
 message Map {
   map<string, Value> Fields = 1;
