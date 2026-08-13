@@ -4,10 +4,10 @@
 //   - 单树规模 ≤ 10 万节点，O(N) 单次线性遍历完成建树。
 //   - 用泛型 Node[T] 支持任意业务扩展字段（Data T），零反射、类型安全。
 //   - 同时支持两种建树策略：
-//     1) BuildByPath：数据已带 path/ppath 冗余字段（如 idx bomscheme）—— 最快，天然处理"同 cnid 挂多处"。
+//     1) BuildByPath：数据已带 path/ppath 冗余字段（如 BOM 树形结构）—— 最快，天然处理"同 cnid 挂多处"。
 //     2) BuildByPid ：只有 id/pid 关系，无 path 字段。
 //
-// 迁移自 idx `internal/logic/bomscheme/bomSchemeNodeTreeLogic.go` 的 pathMap 单次线性遍历思路。
+// 通用 pathMap 单次线性遍历树构建算法，泛型化后适配任意业务节点。
 package tree
 
 import (

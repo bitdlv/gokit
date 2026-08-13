@@ -1,12 +1,12 @@
-// Package middleware 中的 JwtAuthMiddle 是从 idx 项目通用化后的 HTTP 鉴权中间件。
+// Package middleware 中的 JwtAuthMiddle 是通用化后的 HTTP 鉴权中间件。
 //
-// 与 idx 版本相比，本实现将三处强耦合抽象为接口 / 配置项：
+// 与具体业务版本相比，本实现将三处强耦合抽象为接口 / 配置项：
 //
 //  1. 用户模型 → AuthUser 接口 + UserLoader 接口（调用方注入 DB / 缓存实现）
 //  2. 项目状态常量 → AuthUser.IsEnabled() 由调用方决定
 //  3. 外部签名校验 → 可选注入 SignVerifier
 //
-// 支持三条鉴权分支（与 idx 一致）：
+// 支持三条鉴权分支（与常见业务实现一致）：
 //   - Token 认证：Header[cfg.TokenHeader]，支持 JWT 与 Raw+手机号 两种格式
 //   - 内部服务签名认证：Header[cfg.InnerSignHeader] + Header[cfg.InnerAccountHeader]
 //   - 外部签名认证：SignVerifier（可选）

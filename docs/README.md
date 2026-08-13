@@ -33,7 +33,7 @@
 | utils/*.go → helper/*.go | 8 文件扁平合并 |
 | utils/testConfig/ → helper/testconfig/ | 子包命名规范化 |
 
-顶级包数量：44 → **43**（新增 `idgen`：从 idx svc/*_gen.go 抽象；新增 `paging`：从 idx utils/page.go 迁移）
+顶级包数量：44 → **43**（新增 `idgen` 通用 ID 生成器与 `paging` 分页组件）
 
 - 详细用法见 [usage-paging.md](usage-paging.md)、[usage-header-jwtauth.md](usage-header-jwtauth.md)
 

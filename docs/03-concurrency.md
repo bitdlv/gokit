@@ -87,7 +87,7 @@ if lk.TryLock() {
 
 ## paging — 分页并发抓取 / 页码归一化
 
-迁移自 idx `internal/utils/page.go`，通用化后进入公共库。
+通用分页组件，适配 GORM / go-zero / 任意数据源。
 
 **API**：`FetchAll[T]`、`PageResult[T]`、`FetchFunc[T]`、`Normalize`
 

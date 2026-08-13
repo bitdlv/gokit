@@ -1,0 +1,41 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+
+# Coverage
+coverage.txt
+coverage.html
+*.coverprofile
+
+# Vendor (可选：如果想减小仓库体积)
+# vendor/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+bin/
+dist/
+tmp/

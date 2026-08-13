@@ -189,11 +189,8 @@ func registerService(cc *constant.ClientConfig, sc []constant.ServerConfig) {
 		Port:        uint64(port),
 		ServiceName: serviceName,
 		GroupName:   serviceName,
-		ClusterName: "zhiwei",
 		Weight:      10, Enable: true, Healthy: true, Ephemeral: true,
-		Metadata: map[string]string{
-			"idc": "shanghai",
-		},
+		Metadata: map[string]string{},
 	})
 }
 

@@ -61,7 +61,7 @@ func SliceOperator[T any](A, B []T, equalFunc func(a, b T) bool) (union, interse
 		}
 	}
 
-	return intersection, union, differenceAB, differenceBA
+	return union, intersection, differenceAB, differenceBA
 }
 
 // contains 检查切片中是否包含某个元素

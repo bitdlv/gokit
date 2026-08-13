@@ -1,6 +1,6 @@
 # gokit header / jwt / jwtAuth 使用说明
 
-本文以 idx 项目（`/Users/zyl/work/idx/idx/`）为落地范例，说明 gokit 三个基础包
+本文以一个典型业务项目（下称 `myapp`）为例，说明 gokit 三个基础包
 如何配合使用：
 
 - `github.com/bitdlv/gokit/header` — HTTP header 常量 + 透传注册表
@@ -18,21 +18,21 @@ gokit **不再内置**任何业务 header 常量（历史遗留的 `token`/`user
 2. camelCase HTTP header 违反 RFC 7230（不区分大小写、建议 Canonical 形式）。
    保留在公共库会持续误导新项目。
 
-新项目应使用 `X-Foo-Bar` 短横线 canonical 形式；老项目（如 idx）作为**历史契约**
-在自己项目内声明常量并注入到 gokit 注册表即可。
+新项目应使用 `X-Foo-Bar` 短横线 canonical 形式；老项目可在自己项目内
+声明常量并注入到 gokit 注册表即可。
 
 ---
 
-## 2. idx 项目落地示例
+## 2. 落地示例
 
-### 2.1 在 idx 项目内声明业务 header 常量
+### 2.1 在项目内声明业务 header 常量
 
-新建 `idx/internal/consts/headers.go`：
+新建 `myapp/internal/consts/headers.go`：
 
 ```go
 package consts
 
-// idx 历史契约（camelCase） — 仅本项目内部使用，请勿外传。
+// 历史契约（camelCase） — 仅本项目内部使用，新代码请使用短横线形式。
 const (
     HeaderToken       = "token"       // JWT / Raw token
     HeaderUserId      = "userId"      // 用户主键
@@ -52,17 +52,18 @@ var AllPassthroughKeys = []string{
 
 ### 2.2 启动时注册透传 header
 
-在 `idx.go`（服务入口）里，构造 gateway 前调用一次：
+在服务入口里，构造 gateway 前调用一次：
 
 ```go
 import (
     "github.com/bitdlv/gokit/header"
     "github.com/bitdlv/gokit/kit/grpcgw"
-    "idx/internal/consts"
+
+    "myapp/internal/consts"
 )
 
 func main() {
-    // 注入 idx 私有 header 契约到 gokit 透传注册表
+    // 注入业务 header 契约到 gokit 透传注册表
     header.Register(consts.AllPassthroughKeys...)
 
     // 之后 grpcgw.NewHeaderMatcher(nil) 会自动读取注册表快照
@@ -81,8 +82,9 @@ func main() {
 ```go
 import (
     "github.com/bitdlv/gokit/middleware"
-    "idx/internal/consts"
-    "idx/internal/svc"
+
+    "myapp/internal/consts"
+    "myapp/internal/svc"
 )
 
 func NewJwtAuth(svcCtx *svc.ServiceContext) *middleware.JwtAuthMiddle {
@@ -92,9 +94,9 @@ func NewJwtAuth(svcCtx *svc.ServiceContext) *middleware.JwtAuthMiddle {
         SignAuthOpen: svcCtx.Config.SignAuth.Open,
         InnerAPIKey:  svcCtx.Config.InnerAPIKey,
         InnerSalt:    svcCtx.Config.InnerSalt,
-        ServiceName:  "idx",
+        ServiceName:  "myapp",
 
-        // idx 契约 —— 全部在项目侧声明
+        // 业务契约 —— 全部在项目侧声明
         TokenHeader:        consts.HeaderToken,
         InnerSignHeader:    "sign",
         InnerAccountHeader: "userAccount",
@@ -106,8 +108,8 @@ func NewJwtAuth(svcCtx *svc.ServiceContext) *middleware.JwtAuthMiddle {
             BmpAccount: consts.HeaderBpmUname,
         },
     }
-    return middleware.NewJwtAuth(cfg, newIdxUserLoader(svcCtx),
-        middleware.WithSignVerifier(newIdxSignVerifier(svcCtx)),
+    return middleware.NewJwtAuth(cfg, newUserLoader(svcCtx),
+        middleware.WithSignVerifier(newSignVerifier(svcCtx)),
     )
 }
 ```
@@ -117,14 +119,14 @@ func NewJwtAuth(svcCtx *svc.ServiceContext) *middleware.JwtAuthMiddle {
 对 `model.SysUser` 加薄适配（或让 model 直接实现）：
 
 ```go
-type idxAuthUser struct{ u *model.SysUser }
+type authUser struct{ u *model.SysUser }
 
-func (a idxAuthUser) GetID() string         { return strconv.FormatInt(a.u.ID, 10) }
-func (a idxAuthUser) GetUserName() string   { return a.u.UserName }
-func (a idxAuthUser) GetPhone() string      { return a.u.Phone }
-func (a idxAuthUser) GetBmpID() string      { return a.u.BpmUserID }
-func (a idxAuthUser) GetBmpAccount() string { return a.u.BpmUserName }
-func (a idxAuthUser) IsEnabled() bool       { return a.u.Status == model.UserStatusEnabled }
+func (a authUser) GetID() string         { return strconv.FormatInt(a.u.ID, 10) }
+func (a authUser) GetUserName() string   { return a.u.UserName }
+func (a authUser) GetPhone() string      { return a.u.Phone }
+func (a authUser) GetBmpID() string      { return a.u.BpmUserID }
+func (a authUser) GetBmpAccount() string { return a.u.BpmUserName }
+func (a authUser) IsEnabled() bool       { return a.u.Status == model.UserStatusEnabled }
 ```
 
 `UserLoader` 三个方法（`LoadByID` / `LoadByPhone` / `LoadByAccount`）由项目按
@@ -132,7 +134,7 @@ DB + Redis 缓存自行实现。
 
 ### 2.5 下游 handler 读取用户身份
 
-原 idx 代码里 `r.Header.Get(header.HeaderUserId)` 改为读本项目常量：
+业务代码里 `r.Header.Get(header.HeaderUserId)` 改为读本项目常量：
 
 ```go
 // internal/logic/sysservice/accessTokenLogic.go
@@ -192,8 +194,7 @@ gw, _ := grpcgw.DefaultHandler(ctx, endpoint,
 
 ## 5. 迁移检查清单
 
-从 `xxx.cn/business/common` → `github.com/bitdlv/gokit`
-时按以下顺序改造：
+接入 gokit 时按以下顺序改造：
 
 1. 项目内新建 `consts/headers.go`（业务 header 常量集中）
 2. 服务入口调用 `header.Register(consts.AllPassthroughKeys...)`
@@ -215,9 +216,3 @@ gw, _ := grpcgw.DefaultHandler(ctx, endpoint,
 - `gokit/middleware/jwtauth.go` — `JwtAuthMiddle` + `IdentityHeaderMap`
 - `gokit/middleware/header2ctx.go` — header→ctx 透传
 - `gokit/kit/grpcgw/gateway.go` — `NewHeaderMatcher` / `SetUserIDHeader`
-
-idx 项目参考实现：
-- `idx.go`（入口注册）
-- `internal/middlewares/{jwtauth,restheader2ctx}.go`（中间件挂载）
-- `internal/logic/sysservice/{accessToken,callback*}Logic.go`（读 header）
-- `internal/ws/handler_auth.go`（WS token 透传）

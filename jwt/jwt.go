@@ -4,7 +4,7 @@
 //   - 一套 API 覆盖对称（HS256/384/512）与非对称（RS/PS/ES/EdDSA）算法；
 //   - 通过 Config.Algorithm 声明算法，Sign 时严格校验密钥类型与算法家族匹配；
 //   - Parse 阶段强制校验 token 的 alg header 属于允许的家族，防御 alg=none / 家族混淆攻击；
-//   - 提供 StandardClaims 作为 idx 项目 CustomClaims 的等价物，方便迁移。
+//   - 提供 StandardClaims 作为通用 CustomClaims 的等价物，方便迁移。
 //
 // 使用示例：
 //
@@ -16,7 +16,7 @@
 //	// HS256 校验
 //	claims, err := jwt.Parse(tok, jwt.Config{Algorithm: jwt.HS256, Secret: []byte("s3cr3t")})
 //
-//	// 快捷函数（兼容 idx.NewJwtToken / ValidateToken 语义）
+//	// 快捷函数（兼容常见 NewJwtToken / ValidateToken 语义）
 //	tok, _ := jwt.GenerateHS256("s3cr3t", time.Now().Unix(), 3600,
 //	    jwt.KV("userId", "1001"), jwt.KV("userPhone", "13800000000"))
 //	claims, err := jwt.ValidateHS256(tok, "s3cr3t")
@@ -90,7 +90,7 @@ type Config struct {
 	PublicKey  crypto.PublicKey  // 非对称校验密钥（*rsa.PublicKey / *ecdsa.PublicKey / ed25519.PublicKey）
 }
 
-// StandardClaims 是 idx 项目 CustomClaims 的等价物，兼容既有 header 契约。
+// StandardClaims 是通用 CustomClaims 的等价物，兼容常见 header 契约。
 type StandardClaims struct {
 	UserID string `json:"userId"`
 	Phone  string `json:"userPhone"`
@@ -146,7 +146,7 @@ func ParseInto(tokenStr string, cfg Config, out jwtv5.Claims) error {
 	return err
 }
 
-// ParseStandard 校验并返回 StandardClaims（等价于 idx.ValidateToken）。
+// ParseStandard 校验并返回 StandardClaims（等价于常见 ValidateToken 实现）。
 func ParseStandard(tokenStr string, cfg Config) (*StandardClaims, error) {
 	c := &StandardClaims{}
 	if err := ParseInto(tokenStr, cfg, c); err != nil {
@@ -250,9 +250,9 @@ func verifyKey(cfg Config) (any, error) {
 	return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlgorithm, cfg.Algorithm)
 }
 
-// ─────────────────────── HS256 兼容层（对应 idx.NewJwtToken/ValidateToken）─────
+// ─────────────────────── HS256 兼容层（对应常见 NewJwtToken/ValidateToken 实现）─────
 
-// GenerateHS256 复刻 idx 项目 middlewares.NewJwtToken 的行为：
+// GenerateHS256 复刻常见业务项目的 JWT 生成行为：
 // iat 为签发时间（秒），ttlSeconds 为有效期（秒），extras 追加到 MapClaims。
 func GenerateHS256(secret string, iat, ttlSeconds int64, extras ...KV) (string, error) {
 	claims := jwtv5.MapClaims{
@@ -265,7 +265,7 @@ func GenerateHS256(secret string, iat, ttlSeconds int64, extras ...KV) (string, 
 	return Sign(Config{Algorithm: HS256, Secret: []byte(secret)}, claims)
 }
 
-// ValidateHS256 复刻 idx 项目 middlewares.ValidateToken 的行为，返回 StandardClaims。
+// ValidateHS256 复刻常见业务项目的 JWT 校验行为，返回 StandardClaims。
 func ValidateHS256(tokenStr, secret string) (*StandardClaims, error) {
 	return ParseStandard(tokenStr, Config{Algorithm: HS256, Secret: []byte(secret)})
 }

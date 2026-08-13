@@ -98,7 +98,7 @@ roots := tree.BuildByPath([]tree.Elem{{ID:"1", Path:"/1/", Ppath:"/"}, ...})
 - `ToNodes` ≈ 7.4 ms/op；`ToNodesParallel` ≈ 4.4 ms/op（1.67×，keyFn 只做字段拷贝的最劣情况；keyFn 有 strconv/正则等重计算时加速比更高）
 - **注意**：`BuildByPath` 本身没提供并行版——分桶+拷贝的开销比 O(N) map 查找还大，并行反而更慢。加速请集中在 `ToNodesParallel`（keyFn 层）。
 
-**迁移自** idx `internal/logic/bomscheme/bomSchemeNodeTreeLogic.go` 的 `BuildTreeFromEdges` pathMap 单次线性遍历思路，泛型化后适配任意业务节点。
+基于 pathMap 单次线性遍历的通用树构建算法，泛型化后适配任意业务节点。
 
 ## rank — 排序 + 过滤 + 分页
 

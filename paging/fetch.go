@@ -3,7 +3,7 @@
 // 典型场景：调用一个只暴露"页码 + pageSize"的下游接口，需要一次性拿全量数据。
 // FetchAll 会先同步取第 1 页拿到 Total，再并发抓取剩余页，按页码顺序合并返回。
 //
-// 迁移自 idx/internal/utils/page.go，从项目中通用化剥离。
+// 通用分页组件，从内部项目通用化剥离至公共库。
 package paging
 
 import (

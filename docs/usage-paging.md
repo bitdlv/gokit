@@ -1,7 +1,7 @@
 # gokit paging 使用说明
 
 `github.com/bitdlv/gokit/paging` 提供分页数据的**并发全量抓取**和**页码归一化**工具，
-迁移自 `idx/internal/utils/page.go`，通用化后剥离到公共库。
+通用分页组件，从内部项目剥离至公共库。
 
 ---
 
@@ -87,9 +87,9 @@ func (l *ListLogic) List(ctx context.Context, in *pb.ListReq) (*pb.ListResp, err
 
 ---
 
-## 迁移路径（idx / tpl → gokit）
+## 迁移路径
 
-原 `idx/internal/utils/page.go`：
+原内部分页工具实现：
 
 | 原 API | 新 API |
 | --- | --- |
@@ -105,7 +105,7 @@ func (l *ListLogic) List(ctx context.Context, in *pb.ListReq) (*pb.ListResp, err
 gofmt -r 'utils.FetchAll -> paging.FetchAll' -w path/to/file.go
 # 或直接 sed / IDE 重命名，然后：
 goimports -w path/to/file.go   # 会自动补 github.com/bitdlv/gokit/paging
-# 2. 删除 idx/internal/utils/page.go
+# 2. 删除原有内部分页实现
 ```
 
 注意：`PageSize` → `Normalize` 名字变了，`sed -i 's/utils\.PageSize\b/paging.Normalize/g'` 一次到位。

@@ -2,7 +2,9 @@ package clone
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"unsafe"
 )
 
 func buildOptions(opts ...Option) *Options {
@@ -16,11 +18,15 @@ func buildOptions(opts ...Option) *Options {
 }
 
 func deepCopy[T any](src T) T {
-	data, _ := json.Marshal(src)
+	data, err := json.Marshal(src)
+	if err != nil {
+		panic(fmt.Sprintf("clone: json.Marshal failed: %v", err))
+	}
 
 	var dst T
-
-	_ = json.Unmarshal(data, &dst)
+	if err := json.Unmarshal(data, &dst); err != nil {
+		panic(fmt.Sprintf("clone: json.Unmarshal failed: %v", err))
+	}
 
 	return dst
 }
@@ -57,22 +63,22 @@ func Map[K comparable, V any](
 	}
 
 	dst := deepCopy(src)
-
 	options := buildOptions(opts...)
 
 	for k := range dst {
 
-		key := any(k).(interface{})
-
-		if s, ok := key.(string); ok {
+		if s, ok := any(k).(string); ok {
 
 			if _, exists := options.IgnoreFields[s]; exists {
 				delete(dst, k)
 			}
 
-			if s == "ID" ||
-				s == "Id" ||
-				s == "CreatedAt" {
+			if options.IgnorePrimaryKey &&
+				(s == "ID" || s == "Id") {
+				delete(dst, k)
+			}
+
+			if options.IgnoreCreatedAt && s == "CreatedAt" {
 				delete(dst, k)
 			}
 		}
@@ -102,6 +108,18 @@ func cleanStruct(obj any, opts *Options) {
 		fieldType := t.Field(i)
 
 		if !fieldValue.CanSet() {
+			// 嵌入匿名 struct（类型未导出）整体不可 Set，
+			// 但其导出子字段仍可 Set — 用 unsafe 构造可寻址指针递归清理
+			if fieldType.Anonymous &&
+				fieldValue.Kind() == reflect.Struct &&
+				fieldValue.CanAddr() {
+
+				realPtr := reflect.NewAt(
+					fieldValue.Type(),
+					unsafe.Pointer(fieldValue.UnsafeAddr()),
+				)
+				cleanStruct(realPtr.Interface(), opts)
+			}
 			continue
 		}
 
@@ -110,9 +128,9 @@ func cleanStruct(obj any, opts *Options) {
 			continue
 		}
 
-		// 递归处理嵌套 struct
-		if fieldValue.Kind() == reflect.Struct {
-
+		// 递归处理嵌套 struct 与 *struct
+		switch fieldValue.Kind() {
+		case reflect.Struct:
 			if fieldValue.Type() == timeType {
 				continue
 			}
@@ -121,6 +139,23 @@ func cleanStruct(obj any, opts *Options) {
 				fieldValue.Addr().Interface(),
 				opts,
 			)
+
+		case reflect.Pointer:
+			if fieldValue.IsNil() {
+				continue
+			}
+
+			elem := fieldValue.Elem()
+			if elem.Kind() != reflect.Struct {
+				continue
+			}
+
+			if elem.Type() == timeType {
+				continue
+			}
+
+			// fieldValue 本身就是 *struct，可直接传入
+			cleanStruct(fieldValue.Interface(), opts)
 		}
 	}
 }
