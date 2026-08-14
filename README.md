@@ -27,7 +27,7 @@
 | 🔐 **Auth & Security** | `jwt` (HS/RS/PS/ES/EdDSA), `middleware` (JWT auth middleware), `sign`, `cryptos`, `masking` |
 | 💾 **Data Access** | `dbs` (GORM helpers), `cache` (Redis), `es` (Elasticsearch), `storage`, `idgen` (Snowflake/Segment) |
 | 🚀 **Microservice** | `kit` (grpc-gateway helpers), `nacos`, `pb`, `httpx`, `ws`, `result` |
-| 📦 **Data Structures** | `tree` (generic tree builder), `chain`, `rank`, `paging` (concurrent pagination) |
+|| 📦 **Data Structures** | `tree` (generic tree builder), `chain`, `rank`, `paging` (concurrent pagination), `allocate` (tree-based cost allocation) |
 | ⚡ **Concurrency** | `goroutinepool`, `scheduler`, `locker` (Redis lock) |
 | 📝 **Utilities** | `excel` (read/write), `fileutils`, `time`, `random`, `conv`, `validator` |
 | 🛠️ **Error Handling** | `errx` (error codes + i18n), `result` (unified response) |
@@ -59,7 +59,7 @@ Detailed usage guides for each package:
 | # | Category | Doc | Packages |
 |---|----------|-----|----------|
 | 1 | **Basics & Encoding** | [docs/01-basics.md](docs/01-basics.md) | conv, convert, cryptos, sign, random, masking, types, time |
-| 2 | **Data Structures** | [docs/02-datastruct.md](docs/02-datastruct.md) | chain, tree, rank, tryutils |
+|| 2 | **Data Structures** | [docs/02-datastruct.md](docs/02-datastruct.md) | chain, tree, rank, tryutils, **allocate** |
 | 3 | **Concurrency** | [docs/03-concurrency.md](docs/03-concurrency.md) | goroutinepool, scheduler, locker |
 | 4 | **Data Access** | [docs/04-data-access.md](docs/04-data-access.md) | dbs, cache, es, storage, idgen |
 | 5 | **HTTP / RPC / Middleware** | [docs/05-http-rpc.md](docs/05-http-rpc.md) | httpx, ws, middleware, validator, result |
@@ -74,7 +74,87 @@ Detailed usage guides for each package:
 
 ## 🔍 Package Highlights
 
-### `jwt` — JWT Signing & Verification
+### `allocate` — Tree-based Cost Allocation with DataLoader
+Generic tree structure value allocation with automatic data loading, version-based caching, and CRUD operations.
+
+```go
+import "github.com/bitdlv/gokit/allocate"
+
+// 1. Implement DataLoader (auto-load by bizID + version)
+loader := allocate.DataLoaderFunc[CostData](
+    func(ctx context.Context, bizID string, bizVersion int64) ([]tree.Node[CostData], []allocate.Item, float64, float64, error) {
+        return queryNodes(bizID, bizVersion), queryItems(bizID, bizVersion), 0.13, 0.13, nil
+    },
+)
+
+// 2. Create Calculator (no manual nodes needed)
+calc := allocate.NewCalculator(
+    allocate.WithCacheKey[CostData]("project:123", 1),
+    allocate.WithDataLoader[CostData](loader),
+    allocate.WithWeightFn(func(n *tree.Node[CostData]) float64 {
+        if len(n.Child) == 0 {
+            return float64(n.Data.Price) * n.Data.Qty
+        }
+        return 0
+    }),
+)
+
+// 3. Auto-load data and calculate
+result, _ := calc.Calculate()
+
+// 4. CRUD auto-sync (version bump + cache invalidation)
+calc.AddItem(allocate.Item{ID: "tax", Name: "Tax", Value: 200})
+result2, _ := calc.Calculate()  // Auto-load new version data
+```
+
+**Key Features:**
+- **DataLoader auto-load**: No manual `nodes` preparation, auto-load by `bizID+bizVersion`
+- **Version-based cache**: `allocate:{bizID}:v{bizVersion}`, zero CPU overhead
+- **CRUD auto-sync**: Add/Remove/Update operations auto-increment version and invalidate cache
+- **Multi-user share**: Same `bizID+version` hits same cache, version isolation ensures consistency
+- **Largest remainder method**: Exact allocation without cumulative errors
+
+### `allocate` — 树形数值分摊（DataLoader 自动加载）
+基于泛型树结构的通用数值分摊，支持自动数据加载、版本缓存和 CRUD 操作。
+
+```go
+import "github.com/bitdlv/gokit/allocate"
+
+// 1. 实现数据加载器（按 bizID+version 自动加载）
+loader := allocate.DataLoaderFunc[CostData](
+    func(ctx context.Context, bizID string, bizVersion int64) ([]tree.Node[CostData], []allocate.Item, float64, float64, error) {
+        return queryNodes(bizID, bizVersion), queryItems(bizID, bizVersion), 0.13, 0.13, nil
+    },
+)
+
+// 2. 创建计算器（无需手动传入节点数据）
+calc := allocate.NewCalculator(
+    allocate.WithCacheKey[CostData]("project:123", 1),
+    allocate.WithDataLoader[CostData](loader),
+    allocate.WithWeightFn(func(n *tree.Node[CostData]) float64 {
+        if len(n.Child) == 0 {
+            return float64(n.Data.Price) * n.Data.Qty
+        }
+        return 0
+    }),
+)
+
+// 3. 自动加载数据并计算
+result, _ := calc.Calculate()
+
+// 4. CRUD 自动同步（版本递增 + 缓存失效）
+calc.AddItem(allocate.Item{ID: "tax", Name: "税费", Value: 200})
+result2, _ := calc.Calculate()  // 自动加载新版本数据
+```
+
+**核心特性：**
+- **DataLoader 自动加载**：无需手动准备 `nodes`，按 `bizID+bizVersion` 自动加载
+- **业务版本缓存**：`allocate:{bizID}:v{bizVersion}`，零 CPU 开销
+- **CRUD 自动同步**：增删改操作自动递增版本号并失效缓存
+- **多用户共享**：相同 `bizID+version` 命中同一缓存，版本隔离确保一致性
+- **最大余数法**：精确分摊，无累加误差
+
+### `jwt` — JWT 签名与验证
 Full support for HS256/384/512, RS256/384/512, PS256/384/512, ES256/384/512, EdDSA.
 
 ```go
@@ -198,7 +278,7 @@ go test ./...
 
 统一 Go 公共库：`github.com/bitdlv/gokit`
 
-共 **42 个顶级包**，按用途划分为十一大类。所有包均通过 `go build ./...` / `go vet ./...` / `go mod tidy` 验证。
+共 **43 个顶级包**，按用途划分为十一大类。所有包均通过 `go build ./...` / `go vet ./...` / `go mod tidy` 验证。
 
 ### 快速开始
 

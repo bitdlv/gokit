@@ -18,7 +18,9 @@ c.Exec(ctx)   // 顺序执行，任一 Abort 即中断
 
 **测试**：用 mock handler 断言执行顺序 + Abort 行为。
 
-## allocate — 通用树形数值分摊（泛型，DataLoader 自动加载）
+## allocate — 通用树形数值分摊（⭐ 亮点包，DataLoader 自动加载）
+
+> **亮点特性**：业务版本缓存 + CRUD 自动同步 + 多用户共享，生产级树形分摊解决方案。
 
 **核心设计**：通过 `WithCacheKey(bizID, bizVersion)` + `WithDataLoader` 自动加载数据，相同业务版本共享缓存。
 
@@ -64,6 +66,8 @@ result2, _ := calc.Calculate()  // 自动加载新版本数据
 **缓存键格式**：`allocate:{bizID}:v{bizVersion}`
 
 **多用户同步**：用户A 修改后版本号递增，用户B 使用新版本号创建 Calculator 即可看到新数据。
+
+**测试**：14 个用例全部通过（基础分摊、CRUD、多用户、幂等性）
 
 **详见**：[allocate/README.md](../allocate/README.md)
 
