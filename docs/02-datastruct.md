@@ -18,6 +18,55 @@ c.Exec(ctx)   // 顺序执行，任一 Abort 即中断
 
 **测试**：用 mock handler 断言执行顺序 + Abort 行为。
 
+## allocate — 通用树形数值分摊（泛型，DataLoader 自动加载）
+
+**核心设计**：通过 `WithCacheKey(bizID, bizVersion)` + `WithDataLoader` 自动加载数据，相同业务版本共享缓存。
+
+**类型**：`Calculator[T]`、`Item`、`NodeDetail`、`Result`、`DataLoader[T]`
+
+**计算流程**：
+1. `Calculate()` 自动调用 `DataLoader.Load(bizID, bizVersion)` 加载数据
+2. 构建树（`tree.BuildByPath`）
+3. 后序遍历计算权重（叶子=`weightFn(node)`，中间=`sum(children)*max(qty,1)`）
+4. 每个 Item 按权重递归分摊（最大余数法）
+5. 汇总 + 加成（基于净值）
+
+**CRUD 自动同步**：`AddNode/RemoveNode/UpdateNode/AddItem/RemoveItem/UpdateItem/SetExtra/RemoveExtra` 自动递增 `bizVersion` 并失效缓存。
+
+```go
+// 1. 实现数据加载器
+loader := allocate.DataLoaderFunc[CostData](
+    func(ctx context.Context, bizID string, bizVersion int64) ([]tree.Node[CostData], []allocate.Item, float64, float64, error) {
+        return queryNodes(bizID, bizVersion), queryItems(bizID, bizVersion), 0.13, 0.13, nil
+    },
+)
+
+// 2. 创建 Calculator（无需传入 nodes）
+calc := allocate.NewCalculator(
+    allocate.WithCacheKey[CostData]("project:123", 1),
+    allocate.WithDataLoader[CostData](loader),
+    allocate.WithWeightFn(func(n *tree.Node[CostData]) float64 {
+        if len(n.Child) == 0 {
+            return float64(n.Data.Price) * n.Data.Qty
+        }
+        return 0
+    }),
+)
+
+// 3. Calculate() 自动加载数据并计算
+result, _ := calc.Calculate()
+
+// 4. CRUD 操作（自动递增版本号）
+calc.AddItem(allocate.Item{ID: "tax", Name: "税费", Value: 200})
+result2, _ := calc.Calculate()  // 自动加载新版本数据
+```
+
+**缓存键格式**：`allocate:{bizID}:v{bizVersion}`
+
+**多用户同步**：用户A 修改后版本号递增，用户B 使用新版本号创建 Calculator 即可看到新数据。
+
+**详见**：[allocate/README.md](../allocate/README.md)
+
 ## tree — 扁平列表 → 树（泛型，10 万节点 O(N)）
 
 **类型**：`Node[T]`（泛型节点）、`SafeListStore[T]`、`Elem = Node[Empty]`（无扩展字段兼容别名）

@@ -11,7 +11,7 @@
 | 分类 | 文档 | 包 |
 |---|---|---|
 | 一、基础数据/编码 | [01-basics.md](01-basics.md) | conv, convert, cryptos, sign, random, masking, types, time |
-| 二、数据结构/算法 | [02-datastruct.md](02-datastruct.md) | chain, tree, rank, tryutils |
+|| 二、数据结构/算法 | [02-datastruct.md](02-datastruct.md) | chain, tree, rank, tryutils, allocate |
 | 三、并发/调度 | [03-concurrency.md](03-concurrency.md) | goroutinepool, scheduler, locker, paging |
 | 四、数据访问 | [04-data-access.md](04-data-access.md) | dbs, cache, es, storage, idgen |
 | 五、HTTP/RPC/中间件 | [05-http-rpc.md](05-http-rpc.md) | httpx, ws, middleware, validator, result |
@@ -33,7 +33,7 @@
 | utils/*.go → helper/*.go | 8 文件扁平合并 |
 | utils/testConfig/ → helper/testconfig/ | 子包命名规范化 |
 
-顶级包数量：44 → **43**（新增 `idgen` 通用 ID 生成器与 `paging` 分页组件）
+| 顶级包数量：44 → **43**（新增 `idgen` 通用 ID 生成器、`paging` 分页组件与 `allocate` 树形分摊） |
 
 - 详细用法见 [usage-paging.md](usage-paging.md)、[usage-header-jwtauth.md](usage-header-jwtauth.md)
 

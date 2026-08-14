@@ -221,7 +221,7 @@ import (
 | # | 分类 | 文档 | 包 |
 |---|---|---|---|
 | 一 | 基础数据 / 编码 | [docs/01-basics.md](docs/01-basics.md) | conv, convert, cryptos, sign, random, masking, types, time |
-| 二 | 数据结构 / 算法 | [docs/02-datastruct.md](docs/02-datastruct.md) | chain, tree, rank, tryutils |
+|| 二、数据结构/算法 | [02-datastruct.md](02-datastruct.md) | chain, tree, rank, tryutils, allocate |
 | 三 | 并发 / 调度 | [docs/03-concurrency.md](docs/03-concurrency.md) | goroutinepool, scheduler, locker |
 | 四 | 数据访问 | [docs/04-data-access.md](docs/04-data-access.md) | dbs, cache, es, storage, idgen |
 | 五 | HTTP / RPC / 中间件 | [docs/05-http-rpc.md](docs/05-http-rpc.md) | httpx, ws, middleware, validator, result |
@@ -243,8 +243,9 @@ import (
 | `utils/*.go` → `helper/*.go` | 8 个文件扁平合并 |
 | `utils/testConfig/` → `helper/testconfig/` | 子包命名规范化 |
 | 新增 `idgen/` | 通用 ID 生成器：Snowflake / Segment / DateCode / HierCode / Serial |
+| 新增 `allocate/` | 通用树形数值分摊：DataLoader 自动加载 + 业务版本缓存 |
 
-顶级包数量：44 → **42**
+顶级包数量：44 → **43**
 
 ### 外部依赖 mock 建议
 
